@@ -1,0 +1,22 @@
+{
+  "exams": [{
+    "examID": "exam170126",
+    "questions": [
+      {
+        "questionID": "Q1",
+        "question": "What is Golang?"
+      },
+      {
+        "questionID": "Q2",
+        "question": "Explain goroutines in Go."
+      },
+      {
+        "questionID": "Q3",
+        "question": "What is a channel in Go?"
+      }
+    ]
+}
+]
+
+  }
+  

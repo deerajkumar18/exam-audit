@@ -1,0 +1,44 @@
+{
+    "students": [
+      {
+        "studentID": "s1",
+        "studentName": "Arjun Kumar"
+      },
+      {
+        "studentID": "s2",
+        "studentName": "Meera Sharma"
+      },
+      {
+        "studentID": "s3",
+        "studentName": "Ravi Patel"
+      },
+      {
+        "studentID": "s4",
+        "studentName": "Sneha Iyer"
+      },
+      {
+        "studentID": "s5",
+        "studentName": "Amit Verma"
+      },
+      {
+        "studentID": "s6",
+        "studentName": "Priya Nair"
+      },
+      {
+        "studentID": "s7",
+        "studentName": "Karthik Reddy"
+      },
+      {
+        "studentID": "s8",
+        "studentName": "Ananya Das"
+      },
+      {
+        "studentID": "s9",
+        "studentName": "Vikram Singh"
+      },
+      {
+        "studentID": "s10",
+        "studentName": "Neha Gupta"
+      }
+    ]
+  }
