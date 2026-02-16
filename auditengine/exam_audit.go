@@ -3,19 +3,15 @@ package auditengine
 import (
 	"fmt"
 
+	"github.com/deeraj-kumar/exam-audit/config"
 	model "github.com/deeraj-kumar/exam-audit/domain"
 	"github.com/deeraj-kumar/exam-audit/service"
 	"github.com/deeraj-kumar/exam-audit/util"
 )
 
-const (
-	examDetailsJSON     = "/home/kkdee/go/src/github.com/deerajkumar18/exam-audit/data/exam_details.json"
-	studentsDetailsJSON = "/home/kkdee/go/src/github.com/deerajkumar18/exam-audit/data/students_details.json"
-)
-
 type ExamAuditHandler interface {
 	SubmitAnswer(studentId, examID, questionID, ans string) error
-	AuditAnswer(instructorId, examID string) (model.AdjacencyList, error)
+	AuditAnswer(instructorId, examID string) (model.AuditReportResponse, error)
 }
 
 type examAuditHandler struct {
@@ -33,10 +29,10 @@ func (ea *examAuditHandler) SubmitAnswer(studentId, examID, questionID, ans stri
 	return nil
 }
 
-func (ea *examAuditHandler) AuditAnswer(instructorId, examID string) (model.AdjacencyList, error) {
-	exams, err := util.ReadExamJSONData(examDetailsJSON)
+func (ea *examAuditHandler) AuditAnswer(instructorId, examID string) (model.AuditReportResponse, error) {
+	exams, err := util.ReadExamJSONData(config.Cfg.WorkingDir + "/data/exam_details.json")
 	if err != nil {
-		return nil, fmt.Errorf("read exam data failed: %w", err)
+		return model.AuditReportResponse{}, fmt.Errorf("read exam data failed: %w", err)
 	}
 	var selectedExam model.Exam
 	for _, e := range exams.Exams {
@@ -46,19 +42,19 @@ func (ea *examAuditHandler) AuditAnswer(instructorId, examID string) (model.Adja
 		}
 	}
 
-	students, err := util.ReadStudentsJSONData(studentsDetailsJSON)
+	students, err := util.ReadStudentsJSONData(config.Cfg.WorkingDir + "/data/students_details.json")
 	if err != nil {
-		return nil, fmt.Errorf("read students failed: %w", err)
+		return model.AuditReportResponse{}, fmt.Errorf("read students failed: %w", err)
 	}
 
 	answers, err := ea.service.QueryEdittedAnswersByExam(selectedExam, students.Students)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query editted answers by exam %s , err - %v", selectedExam.ExamID, err)
+		return model.AuditReportResponse{}, fmt.Errorf("failed to query editted answers by exam %s , err - %v", selectedExam.ExamID, err)
 	}
 
 	grouped := util.GenerateFlattenedTable(answers)
 
 	adj := util.GenerateAuditReport(grouped)
 
-	return adj, nil
+	return model.AuditReportResponse{ExamID: examID, Report: adj}, nil
 }

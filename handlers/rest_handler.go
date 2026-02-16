@@ -38,7 +38,7 @@ func (h *handlerImpl) SubmitAnswer(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.Status(http.StatusNoContent) // 204
+	c.Status(http.StatusNoContent)
 }
 
 func (h *handlerImpl) AuditAnswer(c *gin.Context) {
@@ -50,10 +50,10 @@ func (h *handlerImpl) AuditAnswer(c *gin.Context) {
 		return
 	}
 
-	adj, err := h.auditEngine.AuditAnswer(instructorId, examID)
+	auditResp, err := h.auditEngine.AuditAnswer(instructorId, examID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, adj)
+	c.JSON(http.StatusOK, auditResp)
 }

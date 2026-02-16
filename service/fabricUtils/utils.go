@@ -14,7 +14,6 @@ import (
 )
 
 var GetCertPool = func(peerTLSCertPath, dir string) (*x509.CertPool, error) {
-	// Load TLS cert for peer (Gateway uses TLS)
 	peerCertBytes, err := os.ReadFile(dir + peerTLSCertPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed reading peer TLS cert: %w", err)

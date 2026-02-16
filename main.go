@@ -7,21 +7,29 @@ import (
 	"syscall"
 
 	"github.com/deeraj-kumar/exam-audit/auditengine"
+	"github.com/deeraj-kumar/exam-audit/config"
 	"github.com/deeraj-kumar/exam-audit/handlers"
 	"github.com/deeraj-kumar/exam-audit/service"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	peerEndpoint := getenv("FABRIC_PEER_ENDPOINT", "localhost:7051")
-	peerTlsCertPath := getenv("FABRIC_PEER_TLS_CERT_PATH", "peer0.org1.example.com/tls/ca.cert")
-	certPath := getenv("FABRIC_CERT_PATH", "admin@org1/signcerts/cert.pem")
-	keyPath := getenv("FABRIC_KEY_PATH", "admin@org1/keystore/priv_sk")
-	mspID := getenv("FABRIC_MSPID", "Org1MSP")
-	channelName := getenv("FABRIC_CHANNEL", "mychannel")
-	chaincodeName := getenv("FABRIC_CHAINCODE", "exam")
+	// peerEndpoint := getenv("FABRIC_PEER_ENDPOINT", "localhost:7051")
+	// peerTlsCertPath := getenv("FABRIC_PEER_TLS_CERT_PATH", "peer0.org1.example.com/tls/ca.cert")
+	// certPath := getenv("FABRIC_CERT_PATH", "admin@org1/signcerts/cert.pem")
+	// keyPath := getenv("FABRIC_KEY_PATH", "admin@org1/keystore/priv_sk")
+	// mspID := getenv("FABRIC_MSPID", "Org1MSP")
+	// channelName := getenv("FABRIC_CHANNEL", "mychannel")
+	// chaincodeName := getenv("FABRIC_CHAINCODE", "exam")
+	// susScoreThreshold:=getenv("SUSPICION_SCORE_THRESHOLD","0.7")
+	if err := config.LoadConfig(); err != nil {
+		return
+	}
 
-	fabricSvc, err := service.NewFabricService(peerEndpoint, peerTlsCertPath, certPath, keyPath, mspID, channelName, chaincodeName)
+	fabricParams := config.Cfg.FabricParams
+	fabricSvc, err := service.NewFabricService(fabricParams.PeerEP, fabricParams.PeerTlsCertPath,
+		fabricParams.FabricIdentity.CertPath, fabricParams.FabricIdentity.KeyPath,
+		fabricParams.MspID, fabricParams.ChannelName, fabricParams.ChaincodeName)
 	if err != nil {
 		log.Fatalf("failed to initialize fabric service: %v", err)
 	}
@@ -46,9 +54,9 @@ func main() {
 	log.Println("shutting down")
 }
 
-func getenv(k, fallback string) string {
-	if v := os.Getenv(k); v != "" {
-		return v
-	}
-	return fallback
-}
+// func getenv(k, fallback string) string {
+// 	if v := os.Getenv(k); v != "" {
+// 		return v
+// 	}
+// 	return fallback
+// }

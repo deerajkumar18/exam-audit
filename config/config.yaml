@@ -1,0 +1,11 @@
+fabric_params:
+  peer_endpoint: localhost:7051
+  peer_tls_cert_path: peer0.org1.example.com/tls/ca.cert
+  mspid: Org1MSP
+  channel_name: mychannel 
+  chaincode_name: exam
+  fabric_identity:
+    cert_path: admin@org1/signcerts/cert.pem
+    keypath: admin@org1/keystore/priv_sk
+suspicion_score_threshold: 0.7
+working_dir: $HOME/go/src/github.com/deerajkumar18/exam-audit

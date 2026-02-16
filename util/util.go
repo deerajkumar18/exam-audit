@@ -4,15 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"os"
 
+	"github.com/deeraj-kumar/exam-audit/config"
 	model "github.com/deeraj-kumar/exam-audit/domain"
 	"github.com/hyperledger/fabric-gateway/pkg/identity"
 )
 
 // ReadExamJSONData reads filename and unmarshals to []model.Exam
 func ReadExamJSONData(filename string) (model.Exams, error) {
+	log.Printf("exam details file path - %s", filename)
 	f, err := os.Open(filename)
 	if err != nil {
 		return model.Exams{}, err
@@ -48,18 +51,21 @@ func ReadStudentsJSONData(filename string) (model.Students, error) {
 }
 
 // GenerateFlattenedTable groups answers by student id
-func GenerateFlattenedTable(editedAnswerList []model.Answer) map[string][]model.Answer {
-	out := make(map[string][]model.Answer)
+func GenerateFlattenedTable(editedAnswerList []model.Answer) map[string]map[string][]model.AnswerRevision {
+	out := make(map[string]map[string][]model.AnswerRevision)
 	for _, ans := range editedAnswerList {
-		out[ans.StudentID] = append(out[ans.StudentID], ans)
+		if _, ok := out[ans.StudentID]; !ok {
+			out[ans.StudentID] = make(map[string][]model.AnswerRevision)
+		}
+		out[ans.StudentID][ans.QuestionID] = append(out[ans.StudentID][ans.QuestionID], model.AnswerRevision{SubmittedAt: ans.SubmittedAt, Ans: ans.Ans})
 	}
 	return out
 }
 
 // GenerateAuditReport compares every pair of students and produces adjacency list
-func GenerateAuditReport(studentAnswersMap map[string][]model.Answer) model.AdjacencyList {
-	adj := make(model.AdjacencyList)
-	// list of student ids
+func GenerateAuditReport(studentAnswersMap map[string]map[string][]model.AnswerRevision) (record model.AdjacencyList) {
+	susScoreThreshold := config.Cfg.SuspicionScoreThreshold
+
 	studentIDs := make([]string, 0, len(studentAnswersMap))
 	for sid := range studentAnswersMap {
 		studentIDs = append(studentIDs, sid)
@@ -67,58 +73,56 @@ func GenerateAuditReport(studentAnswersMap map[string][]model.Answer) model.Adja
 
 	for i := 0; i < len(studentIDs); i++ {
 		aID := studentIDs[i]
-		aAnswers := studentAnswersMap[aID]
-		// only consider students with more than 1 answer record
-		if len(aAnswers) <= 1 {
-			continue
-		}
-		for j := i + 1; j < len(studentIDs); j++ {
-			bID := studentIDs[j]
-			bAnswers := studentAnswersMap[bID]
-			if len(bAnswers) <= 1 {
-				continue
+		std1AnsMap := studentAnswersMap[aID]
+		for qID := range std1AnsMap {
+			std1AnswerRevisions := std1AnsMap[qID]
+			for j := i + 1; j < len(studentIDs); j++ {
+				bID := studentIDs[j]
+				std2AnswerRevisions := studentAnswersMap[bID][qID]
+
+				score := questionScore(std1AnswerRevisions, std2AnswerRevisions)
+				log.Printf("Audit score: %f between Students : %s - %s", score, aID, bID)
+				if score <= 0 || score <= susScoreThreshold {
+					continue
+				}
+				adj := model.AdjacencyItem{
+					StudentA: aID,
+					StudentB: bID,
+					Score:    score,
+				}
+				record = append(record, adj)
 			}
-			score := questionScore(aAnswers, bAnswers)
-			if score <= 0 {
-				continue
-			}
-			edgeA := model.AdjacencyItem{
-				StudentA: aID,
-				StudentB: bID,
-				Score:    score,
-				Reason:   fmt.Sprintf("similarity-%.3f", score),
-			}
-			edgeB := model.AdjacencyItem{
-				StudentA: bID,
-				StudentB: aID,
-				Score:    score,
-				Reason:   fmt.Sprintf("similarity-%.3f", score),
-			}
-			adj[aID] = append(adj[aID], edgeA)
-			adj[bID] = append(adj[bID], edgeB)
 		}
 	}
-	return adj
+	return
 }
 
-func questionScore(stdA, stdB []model.Answer) float64 {
-	finalAnsA := stdA[len(stdA)-1]
-	finalAnsB := stdB[len(stdB)-1]
+func questionScore(stdA, stdB []model.AnswerRevision) float64 {
+	finalAnsA := stdA[len(stdA)-1].Ans
+	finalAnsB := stdB[len(stdB)-1].Ans
 
-	stdATimeStamps := []int64{}
-	for i := 0; i < len(stdA); i++ {
-		stdATimeStamps = append(stdATimeStamps, stdA[i].SubmittedAt)
-	}
-	stdBTimeStamps := []int64{}
-	for i := 0; i < len(stdB); i++ {
-		stdBTimeStamps = append(stdBTimeStamps, stdB[i].SubmittedAt)
+	var stdATimeStamps, stdBTimeStamps []int64
+	for _, t := range stdA {
+		stdATimeStamps = append(stdATimeStamps, t.SubmittedAt)
 	}
 
-	as := answerSimilarity(finalAnsA.Ans, finalAnsB.Ans)
+	for _, t := range stdB {
+		stdBTimeStamps = append(stdBTimeStamps, t.SubmittedAt)
+	}
+
+	var stdAEdits, stdBEdits []string
+	for _, t := range stdA {
+		stdAEdits = append(stdAEdits, t.Ans)
+	}
+
+	for _, t := range stdB {
+		stdBEdits = append(stdBEdits, t.Ans)
+	}
+
+	as := answerSimilarity(finalAnsA, finalAnsB)
 	ts := timeCorrelation(stdATimeStamps, stdBTimeStamps)
-	es := editPatternScore(finalAnsA.Edits, finalAnsB.Edits)
+	es := editPatternScore(stdAEdits, stdBEdits)
 
-	// Weighted combination (tuneable)
 	return (0.5 * as) + (0.3 * ts) + (0.2 * es)
 }
 
@@ -137,20 +141,21 @@ func answerSimilarity(a, b string) float64 {
 }
 
 func timeCorrelation(aTime, bTime []int64) float64 {
-	if len(aTime) == 0 || len(bTime) == 0 {
-		return 0
+	minLen := int(math.Min(float64(len(aTime)), float64(len(bTime))))
+	if len(aTime) > minLen {
+		aTime = aTime[minLen:]
 	}
 
-	minLen := int(math.Min(float64(len(aTime)), float64(len(bTime))))
+	if len(bTime) > minLen {
+		bTime = bTime[minLen:]
+	}
 
 	var sum float64
-	for i := 0; i < minLen; i++ {
+	for i := minLen - 1; i >= 0; i-- {
 		diff := math.Abs(float64(aTime[i] - bTime[i]))
-		// normalize: assuming differences > 60 seconds are "not correlated"
 		score := math.Max(0, 1-(diff/60.0))
 		sum += score
 	}
-
 	return sum / float64(minLen)
 }
 
@@ -160,8 +165,16 @@ func editPatternScore(aEdits, bEdits []string) float64 {
 		return 0
 	}
 
+	if len(aEdits) > minLen {
+		aEdits = aEdits[minLen:]
+	}
+
+	if len(bEdits) > minLen {
+		bEdits = bEdits[minLen:]
+	}
+
 	var match float64
-	for i := 0; i < minLen; i++ {
+	for i := minLen - 1; i >= 0; i-- {
 		if aEdits[i] == bEdits[i] {
 			match++
 		}
