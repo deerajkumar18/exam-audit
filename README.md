@@ -1,6 +1,7 @@
 # exam-audit
 
 About :
+
 The application is designed to identify and report suspicious answering pattern amongst the exam candidates . To generate the the suspicion report , the edit pattern along with the submission time is used to generate correlation score between two candidates . This approach differs from the other online proctored exams as they generally flag candidates real time based on the suspicious activities detected from the webcam or by monitoring the screen . 
 
 Why Hyperledger-fabric ?
@@ -20,6 +21,8 @@ Steps to execute locally :
      curl -v 'http://localhost:8080/audit-answer?examID=exam123&instructorId=i1'
 
 Sequence Diagram :
-1. Submitting the answers:
+1. Answers submission:
+<img width="501" height="372" alt="submit answer sequence" src="https://github.com/user-attachments/assets/3fdbdd7f-53cf-4653-b5d4-98bccd544560" />
 
-2. Generating the audit report:
+2. Audit report generation:
+<img width="381" height="452" alt="generate audit report" src="https://github.com/user-attachments/assets/914ac54c-1488-4633-9438-00ca2c2922dc" />
